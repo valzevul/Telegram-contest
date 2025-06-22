@@ -8,6 +8,8 @@
 
 package org.telegram.ui;
 
+import org.telegram.ui.components.UserProfileViewBuilder;
+
 import static androidx.core.view.ViewCompat.TYPE_TOUCH;
 import static org.telegram.messenger.AndroidUtilities.dp;
 import static org.telegram.messenger.ContactsController.PRIVACY_RULES_TYPE_ADDED_BY_PHONE;
@@ -2140,6 +2142,9 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
 
     @Override
     public View createView(Context context) {
+        TLRPC.User user2 = getMessagesController().getUser(userId);
+        String nameText = user2 != null ? ContactsController.formatName(user2.first_name, user2.last_name) : "";
+        String usernameText = user2 != null && user2.username != null && !user2.username.isEmpty() ? "@" + user2.username : "";
         Theme.createProfileResources(context);
         Theme.createChatResources(context, false);
         BaseFragment lastFragment = parentLayout.getLastFragment();
@@ -3507,7 +3512,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         contentView.needBlur = true;
         FrameLayout frameLayout = (FrameLayout) fragmentView;
 
-        listView = new ClippedListView(context) {
+                listView = new ClippedListView(context) {
 
             private VelocityTracker velocityTracker;
 
@@ -5267,6 +5272,9 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             contentView.addView(bottomButtonsContainer, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, 72 + (1 / AndroidUtilities.density), Gravity.BOTTOM | Gravity.FILL_HORIZONTAL));
         }
 
+        fragmentView = UserProfileViewBuilder.buildUserProfileLayout(
+                context, resourcesProvider, nameText, usernameText, user2
+        );
         return fragmentView;
     }
 
