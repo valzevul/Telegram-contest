@@ -8,7 +8,7 @@
 
 package org.telegram.ui;
 
-import org.telegram.ui.components.UserProfileViewBuilder;
+import org.telegram.ui.Components.UserProfileViewBuilder;
 
 import static androidx.core.view.ViewCompat.TYPE_TOUCH;
 import static org.telegram.messenger.AndroidUtilities.dp;
@@ -2156,6 +2156,9 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         searchMode = false;
         hasOwnBackground = true;
         extraHeight = AndroidUtilities.dp(88f);
+        
+        // New profile redesign will be added at the end after all setup is complete
+        
         actionBar.setActionBarMenuOnItemClick(new ActionBar.ActionBarMenuOnItemClick() {
             @Override
             public void onItemClick(final int id) {
@@ -5271,11 +5274,11 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         if (myProfile) {
             contentView.addView(bottomButtonsContainer, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, 72 + (1 / AndroidUtilities.density), Gravity.BOTTOM | Gravity.FILL_HORIZONTAL));
         }
-
-        fragmentView = UserProfileViewBuilder.buildUserProfileLayout(
-                context, resourcesProvider, nameText, usernameText, user2
-        );
-        return fragmentView;
+        
+        // Add new profile redesign overlay at the very end
+        addNewProfileOverlay(context, contentView);
+        
+        return contentView;
     }
 
     private void updateBottomButtonY() {
@@ -13990,6 +13993,169 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             }
         }
         return true;
+    }
+
+    private View createNewProfileView(Context context) {
+        // Create the fragment view container
+        FrameLayout frameLayout = new FrameLayout(context);
+        frameLayout.setLayoutParams(new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        frameLayout.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite, resourcesProvider));
+        fragmentView = frameLayout;
+        
+        // Set up the content view (skip the cast for now)
+        // contentView = (NestedFrameLayout) fragmentView;
+        // contentView.needBlur = true;
+        
+        // Create a minimal RecyclerListView to prevent crashes in animation methods
+        listView = new RecyclerListView(context);
+        
+        // Determine profile type and create appropriate profile view
+        View profileView = null;
+        
+        if (userId != 0) {
+            TLRPC.User user = getMessagesController().getUser(userId);
+            if (user != null) {
+                if (user.bot) {
+                    profileView = UserProfileViewBuilder.buildBotProfile(context, resourcesProvider, user);
+                } else if (user.verified) { // Use verified as placeholder for business
+                    profileView = UserProfileViewBuilder.buildBusinessProfile(context, resourcesProvider, user);
+                } else {
+                    if (userInfo != null) {
+                        profileView = UserProfileViewBuilder.buildUserProfile(context, resourcesProvider, user, userInfo, this, sharedMediaPreloader);
+                    } else {
+                        profileView = UserProfileViewBuilder.buildUserProfile(context, resourcesProvider, user, userInfo, this, sharedMediaPreloader);
+                    }
+                }
+            }
+        } else if (chatId != 0) {
+            TLRPC.Chat chat = getMessagesController().getChat(chatId);
+            if (chat != null) {
+                if (ChatObject.isChannel(chat)) {
+                    if (chatInfo != null) {
+                        profileView = UserProfileViewBuilder.buildChannelProfile(context, resourcesProvider, chat, chatInfo, this, sharedMediaPreloader);
+                    } else {
+                        profileView = UserProfileViewBuilder.buildChannelProfile(context, resourcesProvider, chat, null, this, sharedMediaPreloader);
+                    }
+                } else {
+                    profileView = UserProfileViewBuilder.buildGroupProfile(context, resourcesProvider, chat);
+                }
+            }
+        }
+        
+        // If profile view was created successfully, add it to the frame layout
+        if (profileView != null) {
+            frameLayout.addView(profileView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
+        } else {
+            // Fallback: create a simple error view
+            TextView errorView = new TextView(context);
+            errorView.setText("Profile not found");
+            errorView.setGravity(Gravity.CENTER);
+            errorView.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteGrayText, resourcesProvider));
+            frameLayout.addView(errorView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
+        }
+        
+        // Create and set up the action bar
+        createActionBarMenu(false);
+        ActionBar actionBar = getActionBar();
+        if (actionBar != null) {
+            actionBar.setBackgroundColor(Theme.getColor(Theme.key_actionBarDefault, resourcesProvider));
+            actionBar.setItemsColor(Theme.getColor(Theme.key_actionBarDefaultIcon, resourcesProvider), false);
+            actionBar.setItemsBackgroundColor(Theme.getColor(Theme.key_actionBarDefaultSelector, resourcesProvider), false);
+            actionBar.setBackButtonImage(R.drawable.ic_ab_back);
+            
+            if (userId != 0) {
+                TLRPC.User user = getMessagesController().getUser(userId);
+                if (user != null) {
+                    actionBar.setTitle(ContactsController.formatName(user.first_name, user.last_name));
+                }
+            } else if (chatId != 0) {
+                TLRPC.Chat chat = getMessagesController().getChat(chatId);
+                if (chat != null) {
+                    actionBar.setTitle(chat.title);
+                }
+            }
+            
+            frameLayout.addView(actionBar);
+        }
+        
+        return frameLayout;
+    }
+
+    private void addNewProfileOverlay(Context context, FrameLayout contentView) {
+        // Feature flag to enable/disable new profile overlay
+        boolean enableNewProfileOverlay = true; // Set to false to disable
+        
+        if (!enableNewProfileOverlay) {
+            return;
+        }
+        
+        // At this point, all existing views are set up properly (listView, etc.)
+        // So we can safely create our new profile as a full replacement
+        
+        // Create new profile view based on profile type
+        View newProfileView = null;
+        
+        if (userId != 0) {
+            TLRPC.User user = getMessagesController().getUser(userId);
+            if (user != null) {
+                if (user.bot) {
+                    newProfileView = UserProfileViewBuilder.buildBotProfile(context, resourcesProvider, user);
+                } else if (user.verified) {
+                    newProfileView = UserProfileViewBuilder.buildBusinessProfile(context, resourcesProvider, user);
+                } else {
+                    if (userInfo != null) {
+                        newProfileView = UserProfileViewBuilder.buildUserProfile(context, resourcesProvider, user, userInfo, this, sharedMediaPreloader);
+                    } else {
+                        newProfileView = UserProfileViewBuilder.buildUserProfile(context, resourcesProvider, user, userInfo, this, sharedMediaPreloader);
+                    }
+                }
+            }
+        } else if (chatId != 0) {
+            TLRPC.Chat chat = getMessagesController().getChat(chatId);
+            if (chat != null) {
+                if (ChatObject.isChannel(chat)) {
+                    if (chatInfo != null) {
+                        newProfileView = UserProfileViewBuilder.buildChannelProfile(context, resourcesProvider, chat, chatInfo, this, sharedMediaPreloader);
+                    } else {
+                        newProfileView = UserProfileViewBuilder.buildChannelProfile(context, resourcesProvider, chat, null, this, sharedMediaPreloader);
+                    }
+                } else {
+                    newProfileView = UserProfileViewBuilder.buildGroupProfile(context, resourcesProvider, chat);
+                }
+            }
+        }
+        
+        // Replace the old profile with the new one
+        if (newProfileView != null) {
+            final View finalProfileView = newProfileView;
+            
+            // Make it a full replacement
+            finalProfileView.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite, resourcesProvider));
+            
+            // Add it on top of everything to replace the old design
+            contentView.addView(finalProfileView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
+            
+            // Add a debug toggle button to switch back to old design
+            TextView toggleButton = new TextView(context);
+            toggleButton.setText("Old Design");
+            toggleButton.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlackText, resourcesProvider));
+            toggleButton.setBackground(Theme.createSelectorDrawable(Theme.getColor(Theme.key_listSelector, resourcesProvider), Theme.RIPPLE_MASK_ROUNDRECT_6DP));
+            toggleButton.setPadding(AndroidUtilities.dp(12), AndroidUtilities.dp(6), AndroidUtilities.dp(12), AndroidUtilities.dp(6));
+            toggleButton.setTextSize(12);
+            toggleButton.setGravity(Gravity.CENTER);
+            toggleButton.setOnClickListener(v -> {
+                if (finalProfileView.getVisibility() == View.VISIBLE) {
+                    finalProfileView.setVisibility(View.GONE);
+                    toggleButton.setText("New Design");
+                } else {
+                    finalProfileView.setVisibility(View.VISIBLE);
+                    toggleButton.setText("Old Design");
+                }
+            });
+            
+            FrameLayout.LayoutParams toggleParams = LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.TOP | Gravity.RIGHT, 0, AndroidUtilities.dp(60), 8, 0);
+            contentView.addView(toggleButton, toggleParams);
+        }
     }
 
 }
