@@ -102,7 +102,7 @@ public class PullToExpandHeaderView extends FrameLayout implements NotificationC
     // Dimensions
     private static final int PULL_THRESHOLD = AndroidUtilities.dp(60); // Lower threshold for easier activation
     private static final int HEADER_HEIGHT = AndroidUtilities.dp(320); // Match updated header height
-    private static final int MINIMIZED_HEIGHT = AndroidUtilities.dp(64); // Slightly larger navbar for better visibility
+    private static final int MINIMIZED_HEIGHT = AndroidUtilities.dp(100); // Increased to accommodate name and status properly
     private static final int EXPANDED_HEIGHT = AndroidUtilities.displaySize.y; // Full screen height
     private static final float OVERSCROLL_FACTOR = 0.4f; // More responsive pull
     private static final float MIN_VELOCITY_TO_EXPAND = AndroidUtilities.dp(500); // Velocity threshold for auto-expand
@@ -131,6 +131,12 @@ public class PullToExpandHeaderView extends FrameLayout implements NotificationC
         setWillNotDraw(false);
         setClipChildren(false);
         setClipToPadding(false);
+        
+        // Also disable outline clipping for API 21+
+        if (android.os.Build.VERSION.SDK_INT >= 21) {
+            setClipToOutline(false);
+        }
+        
         scrimPaint = new Paint();
         
         // Set initial height - fixed to prevent layout changes
@@ -699,40 +705,8 @@ public class PullToExpandHeaderView extends FrameLayout implements NotificationC
     
     @Override
     protected void dispatchDraw(Canvas canvas) {
-        // Apply circular clip for hero image during expansion
-        if (heroImageContainer != null && heroImageContainer.getVisibility() == View.VISIBLE && expandProgress < 1f) {
-            canvas.save();
-            
-            // Calculate clip parameters based on avatar position
-            float avatarCenterX = getWidth() / 2f;
-            float avatarCenterY = AndroidUtilities.dp(52) + AndroidUtilities.dp(52); // Avatar position + radius
-            float avatarRadius = AndroidUtilities.dp(52);
-            
-            // Create clip path that transitions from circle to rectangle
-            clipPath.reset();
-            
-            if (expandProgress < 0.5f) {
-                // First half: expand circle from avatar size
-                float radiusProgress = expandProgress * 2f;
-                float currentRadius = avatarRadius + (Math.max(getWidth(), getHeight()) - avatarRadius) * radiusProgress;
-                clipPath.addCircle(avatarCenterX, avatarCenterY, currentRadius, Path.Direction.CW);
-            } else {
-                // Second half: morph circle to rounded rectangle
-                float rectProgress = (expandProgress - 0.5f) * 2f;
-                float cornerRadius = AndroidUtilities.dp(12) * (1f - rectProgress);
-                clipRect.set(0, 0, getWidth(), getHeight());
-                clipPath.addRoundRect(clipRect, cornerRadius, cornerRadius, Path.Direction.CW);
-            }
-            
-            // Apply clip to hero image container
-            canvas.clipPath(clipPath);
-        }
-        
+        // Simply draw without any clipping - let the animation handle visibility
         super.dispatchDraw(canvas);
-        
-        if (heroImageContainer != null && heroImageContainer.getVisibility() == View.VISIBLE && expandProgress < 1f) {
-            canvas.restore();
-        }
     }
     
     private void animateToExpanded() {

@@ -45,7 +45,7 @@ public class ProfileHeaderComponent extends FrameLayout {
     
     private Paint gradientPaint;
     private LinearGradient gradient;
-    private int headerHeight = AndroidUtilities.dp(320); // Increased height for better spacing
+    private int headerHeight = AndroidUtilities.dp(340); // Increased height to prevent cut-off
     private Theme.ResourcesProvider resourcesProvider;
     private OnMenuClickListener menuClickListener;
     private OnBackClickListener backClickListener;
@@ -155,9 +155,14 @@ public class ProfileHeaderComponent extends FrameLayout {
         setWillNotDraw(false);
         
         
-        // Set clipping based on state
-        setClipChildren(true);
-        setClipToPadding(true);
+        // Set clipping based on state - disable to allow views to animate outside bounds
+        setClipChildren(false);
+        setClipToPadding(false);
+        
+        // Also disable outline clipping for API 21+
+        if (android.os.Build.VERSION.SDK_INT >= 21) {
+            setClipToOutline(false);
+        }
         
         createBackgroundView();
         createAvatarView();
@@ -204,7 +209,7 @@ public class ProfileHeaderComponent extends FrameLayout {
         FrameLayout.LayoutParams avatarParams = new FrameLayout.LayoutParams(
             AndroidUtilities.dp(104), AndroidUtilities.dp(104)); // Reduced by 16px
         avatarParams.gravity = Gravity.CENTER_HORIZONTAL;
-        avatarParams.topMargin = AndroidUtilities.dp(80); // Position avatar below status bar and buttons
+        avatarParams.topMargin = AndroidUtilities.dp(70); // Moved up to make room for buttons
         
         avatarImageView.setLayoutParams(avatarParams);
         avatarImageView.getImageReceiver().setRoundRadius(AndroidUtilities.dp(52));
@@ -232,20 +237,20 @@ public class ProfileHeaderComponent extends FrameLayout {
     private void createTextViews() {
         // Name text view - positioned below avatar
         nameView = new TextView(getContext());
-        nameView.setTextSize(28);
+        nameView.setTextSize(android.util.TypedValue.COMPLEX_UNIT_DIP, 28);
         nameView.setTypeface(AndroidUtilities.getTypeface("fonts/rmedium.ttf"), Typeface.BOLD);
         nameView.setTextColor(0xFFFFFFFF); // White text
-        nameView.setGravity(Gravity.LEFT); // Left align for expanded state
+        nameView.setGravity(Gravity.LEFT | Gravity.CENTER_VERTICAL); // Left align from start
         nameView.setMaxLines(2);
         nameView.setEllipsize(TextUtils.TruncateAt.END);
         nameView.setShadowLayer(3, 0, 2, 0x99000000); // Stronger shadow for readability
         nameView.setElevation(AndroidUtilities.dp(2)); // Ensure it's above background
         
         FrameLayout.LayoutParams nameParams = new FrameLayout.LayoutParams(
-            FrameLayout.LayoutParams.WRAP_CONTENT,
+            FrameLayout.LayoutParams.MATCH_PARENT,
             FrameLayout.LayoutParams.WRAP_CONTENT);
-        nameParams.gravity = Gravity.CENTER_HORIZONTAL;
-        nameParams.topMargin = AndroidUtilities.dp(190); // Adjusted for new avatar position
+        nameParams.gravity = Gravity.LEFT | Gravity.TOP;
+        nameParams.topMargin = AndroidUtilities.dp(170); // Moved up with avatar
         nameParams.leftMargin = AndroidUtilities.dp(16);
         nameParams.rightMargin = AndroidUtilities.dp(16);
         nameView.setLayoutParams(nameParams);
@@ -253,18 +258,20 @@ public class ProfileHeaderComponent extends FrameLayout {
         
         // Status text view - positioned below name
         statusView = new TextView(getContext());
-        statusView.setTextSize(12); // Smaller for better hierarchy
+        statusView.setTextSize(android.util.TypedValue.COMPLEX_UNIT_DIP, 12);
         statusView.setTextColor(0xB3FFFFFF); // Slightly more visible for readability
-        statusView.setGravity(Gravity.LEFT); // Left align for expanded state
+        statusView.setGravity(Gravity.LEFT | Gravity.CENTER_VERTICAL); // Left align from start
         statusView.setMaxLines(1);
         statusView.setShadowLayer(2, 0, 1, 0x99000000); // Stronger shadow for readability
         statusView.setElevation(AndroidUtilities.dp(2)); // Ensure it's above background
         
         FrameLayout.LayoutParams statusParams = new FrameLayout.LayoutParams(
-            FrameLayout.LayoutParams.WRAP_CONTENT,
+            FrameLayout.LayoutParams.MATCH_PARENT,
             FrameLayout.LayoutParams.WRAP_CONTENT);
-        statusParams.gravity = Gravity.CENTER_HORIZONTAL;
-        statusParams.topMargin = AndroidUtilities.dp(235); // Further increased spacing
+        statusParams.gravity = Gravity.LEFT | Gravity.TOP;
+        statusParams.topMargin = AndroidUtilities.dp(203); // 8px gap after name (170 + 25 text + 8)
+        statusParams.leftMargin = AndroidUtilities.dp(16);
+        statusParams.rightMargin = AndroidUtilities.dp(16);
         statusView.setLayoutParams(statusParams);
         addView(statusView);
     }
@@ -272,13 +279,13 @@ public class ProfileHeaderComponent extends FrameLayout {
     private void createActionsContainer() {
         actionsContainer = new LinearLayout(getContext());
         actionsContainer.setOrientation(LinearLayout.HORIZONTAL);
-        actionsContainer.setGravity(Gravity.CENTER);
+        actionsContainer.setGravity(Gravity.LEFT); // Left align buttons
         
         FrameLayout.LayoutParams containerParams = new FrameLayout.LayoutParams(
             FrameLayout.LayoutParams.MATCH_PARENT,
             FrameLayout.LayoutParams.WRAP_CONTENT);
-        containerParams.gravity = Gravity.TOP | Gravity.CENTER_HORIZONTAL;
-        containerParams.topMargin = AndroidUtilities.dp(270); // Fixed position
+        containerParams.gravity = Gravity.TOP | Gravity.LEFT;
+        containerParams.topMargin = AndroidUtilities.dp(227); // Lifted up by 8px for better spacing
         containerParams.leftMargin = AndroidUtilities.dp(16); // Consistent padding
         containerParams.rightMargin = AndroidUtilities.dp(16);
         actionsContainer.setLayoutParams(containerParams);
@@ -288,6 +295,8 @@ public class ProfileHeaderComponent extends FrameLayout {
         setupDefaultUserActions();
         
         addView(actionsContainer);
+        
+        android.util.Log.d("ProfileHeader", "Created actions container with " + actionsContainer.getChildCount() + " buttons");
     }
     
     
@@ -323,7 +332,7 @@ public class ProfileHeaderComponent extends FrameLayout {
             AndroidUtilities.dp(48), AndroidUtilities.dp(48));
         backParams.gravity = Gravity.TOP | Gravity.LEFT;
         backParams.topMargin = AndroidUtilities.dp(40); // Add space for status bar
-        backParams.leftMargin = AndroidUtilities.dp(12);
+        backParams.leftMargin = AndroidUtilities.dp(8); // Closer to edge in expanded state
         backButton.setLayoutParams(backParams);
         
         backButton.setOnClickListener(v -> {
@@ -528,6 +537,14 @@ public class ProfileHeaderComponent extends FrameLayout {
         return minimizeProgress;
     }
     
+    /**
+     * Force update minimized state - useful for debugging
+     * @param progress 0.0 for normal, 1.0 for fully minimized
+     */
+    public void forceMinimizeProgress(float progress) {
+        setMinimizeProgress(progress);
+    }
+    
     public float getExpandProgress() {
         return expandProgress;
     }
@@ -600,31 +617,32 @@ public class ProfileHeaderComponent extends FrameLayout {
      */
     public void setContentExpansion(float progress) {
         if (actionsContainer != null) {
-            // Keep buttons visible and translate them to bottom-left when expanded
-            actionsContainer.setAlpha(1f); // Always visible
-            
             if (progress > 0) {
-                // Calculate translation to move buttons to bottom-left corner
-                float centerX = (getWidth() - actionsContainer.getWidth()) / 2f;
-                float targetX = AndroidUtilities.dp(20); // Left margin in expanded state
-                float deltaX = targetX - centerX;
+                // Calculate translation to align with name/status at left edge
+                float currentLeft = actionsContainer.getLeft();
+                float targetX = AndroidUtilities.dp(8) - currentLeft; // Align with back button margin
                 
-                // Move down slightly
-                float deltaY = AndroidUtilities.dp(100) * progress;
+                // Move down but keep within bounds - reduce movement to prevent cutoff
+                float deltaY = AndroidUtilities.dp(80) * progress;
                 
-                actionsContainer.setTranslationX(deltaX * progress);
+                actionsContainer.setTranslationX(targetX * progress);
                 actionsContainer.setTranslationY(deltaY);
                 
-                // Scale down slightly
-                float scale = 1f - (progress * 0.1f); // Scale to 90% when fully expanded
-                actionsContainer.setScaleX(scale);
-                actionsContainer.setScaleY(scale);
+                // Don't scale - keep buttons at full size
+                actionsContainer.setScaleX(1f);
+                actionsContainer.setScaleY(1f);
+                
+                // Always keep visible
+                actionsContainer.setAlpha(1f);
+                actionsContainer.setVisibility(View.VISIBLE);
             } else {
-                // Reset to default position
+                // Reset to default position when not expanding
                 actionsContainer.setTranslationX(0);
                 actionsContainer.setTranslationY(0);
                 actionsContainer.setScaleX(1f);
                 actionsContainer.setScaleY(1f);
+                actionsContainer.setVisibility(View.VISIBLE);
+                actionsContainer.setAlpha(1f); // Always keep visible
             }
         }
     }
@@ -641,7 +659,7 @@ public class ProfileHeaderComponent extends FrameLayout {
         }
         if (statusView != null) {
             statusView.setTranslationX(x);
-            statusView.setTranslationY(y);
+            statusView.setTranslationY(y + AndroidUtilities.dp(10)); // Keep status below name in expanded state
         }
         // Don't translate action buttons - they stay at bottom
     }
@@ -651,6 +669,10 @@ public class ProfileHeaderComponent extends FrameLayout {
      * @param scrollOffset Current scroll offset in pixels
      */
     public void updateScrollOffset(float scrollOffset) {
+        // Store previous states for comparison
+        float prevMinimizeProgress = minimizeProgress;
+        float prevExpandProgress = expandProgress;
+        
         // Calculate extra height based on scroll (negative offset means overscroll)
         extraHeight = Math.max(0, -scrollOffset);
         
@@ -663,121 +685,363 @@ public class ProfileHeaderComponent extends FrameLayout {
         
         // Calculate minimize progress based on positive scroll
         if (scrollOffset > 0) {
-            minimizeProgress = Math.min(1f, scrollOffset / AndroidUtilities.dp(100));
+            // More responsive minimization - start earlier and complete faster
+            minimizeProgress = Math.min(1f, scrollOffset / AndroidUtilities.dp(80));
         } else {
             minimizeProgress = 0f;
         }
         
-        // Update avatar scale and position
-        final float diff = Math.min(1f, extraHeight / AndroidUtilities.dp(88f));
-        avatarScale = AndroidUtilities.lerp(1f, 1.5f, diff);
-        avatarX = -AndroidUtilities.dp(47) * diff;
-        avatarY = AndroidUtilities.dp(20) * diff;
-        
-        // Apply transformations
-        if (avatarImageView != null) {
-            avatarImageView.setScaleX(avatarScale);
-            avatarImageView.setScaleY(avatarScale);
-            avatarImageView.setTranslationX(avatarX);
-            avatarImageView.setTranslationY(avatarY);
+        // Update avatar scale and position only when expanding
+        if (expandProgress > 0) {
+            final float diff = Math.min(1f, extraHeight / AndroidUtilities.dp(88f));
+            avatarScale = AndroidUtilities.lerp(1f, 1.5f, diff);
+            avatarX = -AndroidUtilities.dp(47) * diff;
+            avatarY = AndroidUtilities.dp(20) * diff;
+            
+            if (avatarImageView != null) {
+                avatarImageView.setScaleX(avatarScale);
+                avatarImageView.setScaleY(avatarScale);
+                avatarImageView.setTranslationX(avatarX);
+                avatarImageView.setTranslationY(avatarY);
+            }
         }
         
         // Update other elements
         setMinimizeProgress(minimizeProgress);
         setContentExpansion(expandProgress);
         
+        // Check if we've returned to default state
+        boolean isDefaultState = minimizeProgress < 0.01f && expandProgress < 0.01f;
+        boolean wasInTransition = (prevMinimizeProgress > 0.01f || prevExpandProgress > 0.01f);
+        
+        if (isDefaultState && wasInTransition) {
+            // Full state reset when returning to default
+            android.util.Log.d("ProfileHeader", "Resetting to default state");
+            resetToDefaultState();
+        }
+        
         invalidate();
     }
+    
+    private void resetToDefaultState() {
+        // Reset action buttons
+        actionButtonsHidden = false;
+        if (actionsContainer != null) {
+            actionsContainer.setVisibility(View.VISIBLE);
+            actionsContainer.setAlpha(1f);
+            actionsContainer.setTranslationX(0);
+            actionsContainer.setTranslationY(0);
+            actionsContainer.setScaleX(1f);
+            actionsContainer.setScaleY(1f);
+        }
+        
+        // Reset avatar
+        if (avatarImageView != null) {
+            avatarImageView.setScaleX(1f);
+            avatarImageView.setScaleY(1f);
+            avatarImageView.setTranslationX(0);
+            avatarImageView.setTranslationY(0);
+            avatarImageView.setAlpha(1f);
+        }
+        
+        // Reset name/status
+        if (nameView != null) {
+            nameView.setTranslationX(0);
+            nameView.setTranslationY(0);
+            nameView.setScaleX(1f);
+            nameView.setScaleY(1f);
+            nameView.setTextSize(android.util.TypedValue.COMPLEX_UNIT_DIP, 28);
+            nameView.setGravity(Gravity.LEFT | Gravity.CENTER_VERTICAL);
+            nameView.setMaxLines(2);
+            nameView.setAlpha(1f);
+            nameView.setVisibility(View.VISIBLE);
+        }
+        if (statusView != null) {
+            statusView.setTranslationX(0);
+            statusView.setTranslationY(0);
+            statusView.setScaleX(1f);
+            statusView.setScaleY(1f);
+            statusView.setTextSize(android.util.TypedValue.COMPLEX_UNIT_DIP, 12);
+            statusView.setGravity(Gravity.LEFT | Gravity.CENTER_VERTICAL);
+            statusView.setAlpha(1f);
+            statusView.setVisibility(View.VISIBLE);
+        }
+        
+        // Reset back/menu buttons
+        if (backButton != null) {
+            backButton.setTranslationY(0);
+            backButton.setAlpha(1f);
+        }
+        if (menuButton != null) {
+            menuButton.setTranslationY(0);
+            menuButton.setAlpha(1f);
+        }
+        
+        // Force a layout pass
+        requestLayout();
+    }
+    
+    private void ensureActionButtonsVisible() {
+        // This method is now redundant - use resetToDefaultState() instead
+        resetToDefaultState();
+    }
+    
+    private boolean isUpdatingMinimizeProgress = false;
+    
+    // Hysteresis mechanism for action button visibility
+    private boolean actionButtonsHidden = false;
+    private static final float HIDE_THRESHOLD = 0.15f;
+    private static final float SHOW_THRESHOLD = 0.05f;
+    
+    // Track last update time for debouncing
+    private long lastProgressUpdateTime = 0;
+    private static final long DEBOUNCE_DELAY = 16; // ~60fps
+    
+    @Override
+    protected void onAttachedToWindow() {
+        super.onAttachedToWindow();
+        // Ensure action buttons are visible when view is attached
+        if (minimizeProgress == 0f && expandProgress == 0f) {
+            postDelayed(() -> {
+                if (actionsContainer != null) {
+                    android.util.Log.d("ProfileHeader", "onAttachedToWindow: Ensuring action buttons visible");
+                    ensureActionButtonsVisible();
+                }
+            }, 200);
+        }
+    }
+    
+    @Override
+    protected void onLayout(boolean changed, int left, int top, int right, int bottom) {
+        super.onLayout(changed, left, top, right, bottom);
+        
+        // Force a minimize progress update if we're in a minimized state
+        // This ensures views are positioned correctly after layout
+        // Add guard against recursive updates
+        if (minimizeProgress > 0 && !isUpdatingMinimizeProgress) {
+            isUpdatingMinimizeProgress = true;
+            post(() -> {
+                setMinimizeProgress(minimizeProgress);
+                isUpdatingMinimizeProgress = false;
+            });
+        }
+        
+        // Ensure action buttons are visible in default state
+        if (minimizeProgress == 0f && expandProgress == 0f && actionsContainer != null) {
+            if (actionsContainer.getVisibility() != View.VISIBLE || actionsContainer.getAlpha() < 1f) {
+                android.util.Log.d("ProfileHeader", "onLayout: Action buttons not visible, fixing...");
+                ensureActionButtonsVisible();
+            }
+        }
+    }
+    
     
     /**
      * Set minimize progress for transitioning to navigation bar
      * @param progress 0.0 for normal, 1.0 for fully minimized
      */
     private void setMinimizeProgress(float progress) {
+        // Debounce rapid updates
+        long currentTime = System.currentTimeMillis();
+        if (currentTime - lastProgressUpdateTime < DEBOUNCE_DELAY && Math.abs(minimizeProgress - progress) < 0.01f) {
+            return;
+        }
+        lastProgressUpdateTime = currentTime;
+        
         minimizeProgress = progress;
+        
+        // Debug log
+        android.util.Log.d("ProfileHeader", "setMinimizeProgress called with progress: " + progress + ", expandProgress: " + expandProgress);
         
         // Smoothly fade out avatar and action buttons
         float fadeOutAlpha = Math.max(0f, 1f - progress);
         if (avatarImageView != null) {
             avatarImageView.setAlpha(fadeOutAlpha);
-            avatarImageView.setScaleX(1f - progress * 0.3f);
-            avatarImageView.setScaleY(1f - progress * 0.3f);
-        }
-        if (actionsContainer != null) {
-            // Keep action buttons visible in minimized state too
-            actionsContainer.setAlpha(1f);
+            // Scale avatar down during minimize
+            float avatarMinScale = 1f - progress * 0.3f;
+            avatarImageView.setScaleX(avatarMinScale);
+            avatarImageView.setScaleY(avatarMinScale);
+            
+            // Reset translation when returning to default (progress = 0)
+            if (progress == 0f) {
+                avatarImageView.setTranslationX(0);
+                avatarImageView.setTranslationY(0);
+            }
         }
         
-        // Keep navigation buttons visible
+        if (actionsContainer != null) {
+            // Simple fade based on minimize progress
+            float alpha = Math.max(0f, 1f - progress);
+            actionsContainer.setAlpha(alpha);
+            
+            // Always keep visible, let alpha handle the appearance
+            actionsContainer.setVisibility(View.VISIBLE);
+            
+            // Reset position if returning to default
+            if (progress < 0.05f && expandProgress < 0.05f) {
+                actionsContainer.setTranslationX(0);
+                actionsContainer.setTranslationY(0);
+                actionsContainer.setScaleX(1f);
+                actionsContainer.setScaleY(1f);
+            }
+            
+            actionButtonsHidden = progress > 0.9f;
+            android.util.Log.d("ProfileHeader", "Action buttons - progress: " + progress + ", alpha: " + alpha);
+        }
+        
+        // Keep navigation buttons visible and adjust their position
         if (backButton != null) {
             backButton.setAlpha(1f);
-            // Move back button up to center in 64dp navbar
-            backButton.setTranslationY(-AndroidUtilities.dp(20) * progress);
+            // In minimized state, center the back button vertically
+            if (progress > 0.5f) {
+                // Calculate new position for minimized state
+                // Total height is 100dp, center button vertically
+                float targetTopMargin = (AndroidUtilities.dp(100) - AndroidUtilities.dp(48)) / 2f; // Center in 100dp
+                float originalTopMargin = AndroidUtilities.dp(40);
+                float deltaY = targetTopMargin - originalTopMargin;
+                backButton.setTranslationY(deltaY * progress);
+            } else {
+                backButton.setTranslationY(0);
+            }
         }
         if (menuButton != null) {
             menuButton.setAlpha(1f);
-            // Move menu button up to center in navbar
-            menuButton.setTranslationY(-AndroidUtilities.dp(20) * progress);
+            // Also adjust menu button position
+            if (progress > 0.5f) {
+                float targetTopMargin = (AndroidUtilities.dp(100) - AndroidUtilities.dp(48)) / 2f;
+                float originalTopMargin = AndroidUtilities.dp(40);
+                float deltaY = targetTopMargin - originalTopMargin;
+                menuButton.setTranslationY(deltaY * progress);
+            } else {
+                menuButton.setTranslationY(0);
+            }
         }
         
         // Animate name and status to navbar position
         if (nameView != null && statusView != null) {
-            // Skip if layout not ready
-            if (getWidth() == 0 || nameView.getWidth() == 0) {
-                // Don't recursively call - this causes hanging
+            // Skip if views not ready - don't force measurement during animation
+            if (nameView.getWidth() == 0 || statusView.getWidth() == 0) {
                 return;
             }
             
-            // Calculate horizontal movement (center to left)
-            float targetX = AndroidUtilities.dp(72); // After back button
-            float centerX = (getWidth() - nameView.getWidth()) / 2f;
-            float deltaX = targetX - centerX;
+            // Calculate horizontal movement
+            // Back button is at left margin 12dp and is 48dp wide, so text starts at 60dp + some padding
+            float targetX = AndroidUtilities.dp(68); // Right after back button with small padding
+            float currentX = nameView.getLeft(); // Current left position
+            float deltaX = targetX - currentX;
             
-            // Apply horizontal translation
+            // Apply horizontal translation - move to absolute position
             nameView.setTranslationX(deltaX * progress);
             statusView.setTranslationX(deltaX * progress);
             
-            // Calculate vertical movement
-            // The header shrinks from 320dp to 64dp, so we need to move content up
-            // In minimized state, name should be centered vertically in navbar
-            float nameCurrentY = nameView.getTop(); // ~190dp
-            float nameTargetY = AndroidUtilities.dp(12); // Center in 64dp navbar
-            float nameDeltaY = nameTargetY - nameCurrentY; // Should be negative (moving up)
+            // Calculate vertical positions
+            // The parent view (PullToExpandHeaderView) handles the height animation
+            // We need to position text within the current measured bounds
             
-            float statusCurrentY = statusView.getTop(); // ~235dp
-            float statusTargetY = AndroidUtilities.dp(32); // Below name in navbar
-            float statusDeltaY = statusTargetY - statusCurrentY; // Should be negative
+            // Get the current measured height of the parent
+            float currentHeight = getMeasuredHeight();
+            if (currentHeight == 0) {
+                // Not measured yet, skip
+                return;
+            }
             
-            nameView.setTranslationY(nameDeltaY * progress);
-            statusView.setTranslationY(statusDeltaY * progress);
+            // In minimized state, properly center align content vertically
+            // Total navbar height is 100dp
+            float navbarHeight = AndroidUtilities.dp(100);
+            float contentHeight = AndroidUtilities.dp(40); // Approximate height of name + status
+            float navbarCenterY = navbarHeight / 2f;
+            float nameTargetY = navbarCenterY - AndroidUtilities.dp(12); // Name above center
+            float statusTargetY = navbarCenterY + AndroidUtilities.dp(8); // Status below center
             
-            // Scale text for navbar - name stays larger, status becomes smaller
-            float nameScale = 1f - progress * 0.2f; // Only slight reduction for name
-            nameView.setScaleX(nameScale);
-            nameView.setScaleY(nameScale);
-            nameView.setPivotX(0); // Scale from left edge
-            nameView.setPivotY(nameView.getHeight() / 2f); // Scale from vertical center
+            // Get current positions
+            float nameCurrentY = nameView.getTop() + nameView.getTranslationY();
+            float statusCurrentY = statusView.getTop() + statusView.getTranslationY();
             
-            float statusScale = 1f - progress * 0.5f; // Status text much smaller
-            statusView.setScaleX(statusScale);
-            statusView.setScaleY(statusScale);
+            // For minimized state, we need absolute positioning
+            if (progress > 0.9f) {
+                // Fully minimized - use absolute positions
+                nameView.setTranslationY(nameTargetY - nameView.getTop());
+                statusView.setTranslationY(statusTargetY - statusView.getTop());
+            } else {
+                // Animating - interpolate
+                float nameOriginalY = nameView.getTop();
+                float statusOriginalY = statusView.getTop();
+                
+                float nameY = nameOriginalY + (nameTargetY - nameOriginalY) * progress;
+                float statusY = statusOriginalY + (statusTargetY - statusOriginalY) * progress;
+                
+                nameView.setTranslationY(nameY - nameView.getTop());
+                statusView.setTranslationY(statusY - statusView.getTop());
+            }
+            
+            // Scale adjustments - don't scale, just change text size
+            // Keep scale at 1 to maintain proper alignment
+            nameView.setScaleX(1f);
+            nameView.setScaleY(1f);
+            nameView.setPivotX(0);
+            nameView.setPivotY(nameView.getHeight() / 2f);
+            
+            statusView.setScaleX(1f);
+            statusView.setScaleY(1f);
             statusView.setPivotX(0);
             statusView.setPivotY(statusView.getHeight() / 2f);
             
-            // Keep text visible and on top
+            // Ensure visibility
             nameView.setAlpha(1f);
             statusView.setAlpha(1f);
+            nameView.setVisibility(View.VISIBLE);
+            statusView.setVisibility(View.VISIBLE);
             
-            // Ensure proper view ordering for minimized state
-            if (progress > 0 && progress < 0.1f) {
-                // Only reorder views once at the start of animation
-                // First bring background to front to ensure it's visible
+            // Text properties based on state
+            if (progress > 0.8f) {
+                // Minimized state - use standard navbar text sizes
+                nameView.setTextSize(android.util.TypedValue.COMPLEX_UNIT_DIP, 16);
+                statusView.setTextSize(android.util.TypedValue.COMPLEX_UNIT_DIP, 13);
+                nameView.setMaxLines(1);
+                statusView.setMaxLines(1);
+                nameView.setGravity(Gravity.LEFT | Gravity.CENTER_VERTICAL);
+                statusView.setGravity(Gravity.LEFT | Gravity.CENTER_VERTICAL);
+                // Set proper pivot for left alignment
+                nameView.setPivotX(0);
+                statusView.setPivotX(0);
+                nameView.setEllipsize(android.text.TextUtils.TruncateAt.END);
+                statusView.setEllipsize(android.text.TextUtils.TruncateAt.END);
+            } else if (progress < 0.2f) {
+                // Normal state
+                nameView.setTextSize(android.util.TypedValue.COMPLEX_UNIT_DIP, 28);
+                statusView.setTextSize(android.util.TypedValue.COMPLEX_UNIT_DIP, 12);
+                nameView.setMaxLines(2);
+                statusView.setMaxLines(1);
+                nameView.setGravity(Gravity.LEFT | Gravity.CENTER_VERTICAL);
+                statusView.setGravity(Gravity.LEFT | Gravity.CENTER_VERTICAL);
+            }
+            
+            // Force proper z-ordering
+            if (progress > 0) {
                 backgroundView.bringToFront();
-                // Then bring navigation elements on top of background
                 backButton.bringToFront();
                 nameView.bringToFront();
                 statusView.bringToFront();
                 menuButton.bringToFront();
+            }
+            
+            // Remove bounds checking that might interfere with visibility
+            // The increased header height should provide enough space
+            
+            // Debug logging
+            if (progress > 0.9f) {
+                android.util.Log.d("ProfileHeader", "=== Minimized State Debug ===");
+                android.util.Log.d("ProfileHeader", "Progress: " + progress);
+                android.util.Log.d("ProfileHeader", "Name target Y: " + nameTargetY);
+                android.util.Log.d("ProfileHeader", "Status target Y: " + statusTargetY);
+                android.util.Log.d("ProfileHeader", "Name TransY: " + nameView.getTranslationY());
+                android.util.Log.d("ProfileHeader", "Status TransY: " + statusView.getTranslationY());
+                android.util.Log.d("ProfileHeader", "Final Name Y: " + (nameView.getTop() + nameView.getTranslationY()));
+                android.util.Log.d("ProfileHeader", "Final Status Y: " + (statusView.getTop() + statusView.getTranslationY()));
+                android.util.Log.d("ProfileHeader", "Header height: " + getHeight());
+                android.util.Log.d("ProfileHeader", "Header measured height: " + getMeasuredHeight());
+                android.util.Log.d("ProfileHeader", "Name visibility: " + nameView.getVisibility() + ", alpha: " + nameView.getAlpha());
+                android.util.Log.d("ProfileHeader", "Name text: " + nameView.getText());
             }
         }
         
@@ -787,6 +1051,53 @@ public class ProfileHeaderComponent extends FrameLayout {
         }
         
         invalidate();
+    }
+    
+    @Override
+    protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+        // Measure with our desired height
+        int width = MeasureSpec.getSize(widthMeasureSpec);
+        int heightMode = MeasureSpec.getMode(heightMeasureSpec);
+        int heightSize = MeasureSpec.getSize(heightMeasureSpec);
+        
+        // Use our header height unless constrained
+        int desiredHeight = headerHeight;
+        int finalHeight;
+        
+        if (heightMode == MeasureSpec.EXACTLY) {
+            finalHeight = heightSize;
+        } else if (heightMode == MeasureSpec.AT_MOST) {
+            finalHeight = Math.min(desiredHeight, heightSize);
+        } else {
+            finalHeight = desiredHeight;
+        }
+        
+        // Log the measured dimensions
+        android.util.Log.d("ProfileHeader", "onMeasure - desired: " + desiredHeight + 
+            ", final: " + finalHeight + ", mode: " + heightMode + ", minimizeProgress: " + minimizeProgress);
+        
+        setMeasuredDimension(width, finalHeight);
+        
+        // Measure children with the final dimensions
+        measureChildren(
+            MeasureSpec.makeMeasureSpec(width, MeasureSpec.EXACTLY),
+            MeasureSpec.makeMeasureSpec(finalHeight, MeasureSpec.EXACTLY)
+        );
+        
+        // Adjust layout based on minimize progress
+        if (minimizeProgress > 0.5f) {
+            // In minimized state, ensure views are positioned correctly
+            for (int i = 0; i < getChildCount(); i++) {
+                View child = getChildAt(i);
+                if (child == nameView || child == statusView) {
+                    // Measure text views with WRAP_CONTENT
+                    child.measure(
+                        MeasureSpec.makeMeasureSpec(width - AndroidUtilities.dp(144), MeasureSpec.AT_MOST),
+                        MeasureSpec.makeMeasureSpec(finalHeight, MeasureSpec.AT_MOST)
+                    );
+                }
+            }
+        }
     }
     
     /**
